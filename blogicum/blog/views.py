@@ -3,10 +3,10 @@ from django.views.generic import (
 )
 from django.utils import timezone
 from django.http import Http404
-from django.shortcuts import get_object_or_404
-from django.urls import reverse_lazy
+from django.shortcuts import get_object_or_404, redirect
+from django.urls import reverse_lazy, reverse
 from django.core.paginator import Paginator
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.forms import UserCreationForm, UserChangeForm
 from django.contrib.auth.views import PasswordChangeView
 from django.contrib.auth.models import User
@@ -16,6 +16,11 @@ from .constants import LATEST_POSTS_COUNT
 from .forms import PostCreateForm, CommentForm
 
 
+class OnlyAuthorMixin(UserPassesTestMixin):
+
+    def test_func(self):
+        object = self.get_object()
+        return object.author == self.request.user
 
 class PublishedPostsMixin:
     """Mixin для фильтрации опубликованных постов."""
@@ -116,6 +121,7 @@ class PostCreateView(LoginRequiredMixin, CreateView):
     model = Post
     form_class = PostCreateForm
     template_name = 'blog/create.html'
+    login_url = '/login/'
     pk_url_kwarg = 'post_id'
 
     def form_valid(self, form):
@@ -136,25 +142,16 @@ class PostEditView(LoginRequiredMixin, UpdateView):
     template_name = 'blog/create.html'
     pk_url_kwarg = 'post_id'
 
-    def form_valid(self, form):
-        if form.instance.pub_date > timezone.now():
-            form.instance.is_published = False
-        return super().form_valid(form)
-
-    def get_object(self, queryset=None):
-        post = super().get_object(queryset)
-        if post.author != self.request.user:
-            raise Http404("У вас нет прав для редактирования этого поста.")
-        return post
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        if 'form' not in context:
-            context['form'] = self.get_form()
-        return context
+    def handle_no_permission(self):
+        if not self.test_func():
+            return redirect(reverse(
+                'blog:post_detail', kwargs={'post_id': self.kwargs['post_id']}
+            ))
 
     def get_success_url(self):
-        return reverse_lazy('blog:post_detail', kwargs={'id': self.object.id})
+        return reverse_lazy(
+            'blog:post_detail', kwargs={'post_id': self.kwargs['post_id']}
+        )
 
 
 class PostDeleteView(LoginRequiredMixin, DeleteView):
@@ -270,22 +267,19 @@ class PostDetailView(PostAvailableMixin, DetailView):
     model = Post
     template_name = "blog/detail.html"
     context_object_name = "post"
-    pk_url_kwarg = 'id'
+    pk_url_kwarg = 'post_id'
 
     def get_object(self, queryset=None):
-        post_id = self.kwargs.get('post_id')
-        post = get_object_or_404(Post, id=post_id)
-        if (post.author == self.request.user or (post.is_published
-                                                 and post.category.is_published)):
-            return post
-        raise Http404('Страница не найдена')
+        post = super().get_object(queryset)
+        if not post.is_published or not post.category.is_published:
+            raise Http404("Публикация недоступна.")
+        return post
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         post = self.get_object()
-        comments = post.comments.all().order_by('created_at')
         context['form'] = CommentForm()
-        context['comments'] = comments
+        context['comments'] = post.comments.select_related('author').order_by('pub_date')
         return context
 
 
