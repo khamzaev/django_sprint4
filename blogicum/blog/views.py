@@ -10,6 +10,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.forms import UserCreationForm, UserChangeForm
 from django.contrib.auth.views import PasswordChangeView
 from django.contrib.auth.models import User
+from django.db.models import Count
 
 from .models import Post, Category, Comment
 from .constants import LATEST_POSTS_COUNT
@@ -89,7 +90,7 @@ class UserProfileView(DetailView):
         context = super().get_context_data(**kwargs)
         posts = Post.objects.filter(
             author=self.object
-        ).order_by('-pub_date')
+        ).annotate(comment_count=Count('comments')).order_by('-pub_date')
         paginator = Paginator(posts, 10)
         page_number = self.request.GET.get('page')
         context['page_obj'] = paginator.get_page(page_number)
@@ -197,7 +198,7 @@ class CommentCreateView(LoginRequiredMixin, CreateView):
 
     def get_success_url(self):
         return reverse_lazy(
-            'blog:post_detail', kwargs={'id': self.kwargs['post_id']}
+            'blog:post_detail', kwargs={'post_id': self.kwargs['post_id']}
         )
 
 
@@ -210,7 +211,7 @@ class CommentEditView(LoginRequiredMixin, OnlyAuthorMixin, UpdateView):
 
     def get_success_url(self):
         return reverse_lazy(
-            'blog:post_detail', kwargs={'id': self.object.post.id}
+            'blog:post_detail', kwargs={'post_id': self.object.post.id}
         )
 
     def get_context_data(self, **kwargs):
@@ -233,7 +234,7 @@ class CommentDeleteView(LoginRequiredMixin, OnlyAuthorMixin, DeleteView):
 
     def get_success_url(self):
         return reverse_lazy(
-            'blog:post_detail', kwargs={'id': self.object.post.id}
+            'blog:post_detail', kwargs={'post_id': self.object.post.id}
         )
 
 
@@ -244,6 +245,10 @@ class PostListView(PublishedPostsMixin, ListView):
     template_name = "blog/index.html"
     context_object_name = "post_list"
     paginate_by = LATEST_POSTS_COUNT
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        return queryset.annotate(comment_count=Count('comments'))
 
 
 class PostDetailView(PostAvailableMixin, DetailView):
