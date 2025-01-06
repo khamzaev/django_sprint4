@@ -6,7 +6,7 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy, reverse
 from django.core.paginator import Paginator
-from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.forms import UserCreationForm, UserChangeForm
 from django.contrib.auth.views import PasswordChangeView
 from django.contrib.auth.models import User
@@ -16,11 +16,15 @@ from .constants import LATEST_POSTS_COUNT
 from .forms import PostCreateForm, CommentForm
 
 
-class OnlyAuthorMixin(UserPassesTestMixin):
+class OnlyAuthorMixin:
+    """Mixin для проверки, что объект принадлежит текущему пользователю."""
 
-    def test_func(self):
-        object = self.get_object()
-        return object.author == self.request.user
+    def get_object(self, queryset=None):
+        obj = super().get_object(queryset)
+        if obj.author != self.request.user:
+            raise Http404("Вы не можете редактировать или удалять чужой контент.")
+        return obj
+
 
 class PublishedPostsMixin:
     """Mixin для фильтрации опубликованных постов."""
@@ -92,7 +96,7 @@ class UserProfileView(DetailView):
         return context
 
 
-class UserProfileEditView(LoginRequiredMixin, UpdateView):
+class UserProfileEditView(LoginRequiredMixin, OnlyAuthorMixin, UpdateView):
     """Представление для редактирования профиля пользователя."""
 
     model = User
@@ -134,7 +138,7 @@ class PostCreateView(LoginRequiredMixin, CreateView):
         )
 
 
-class PostEditView(LoginRequiredMixin, UpdateView):
+class PostEditView(LoginRequiredMixin, OnlyAuthorMixin, UpdateView):
     """Представление для редактирования публикации."""
 
     model = Post
@@ -154,18 +158,12 @@ class PostEditView(LoginRequiredMixin, UpdateView):
         )
 
 
-class PostDeleteView(LoginRequiredMixin, DeleteView):
+class PostDeleteView(LoginRequiredMixin, OnlyAuthorMixin, DeleteView):
     """Представление для удаления публикации."""
 
     model = Post
     template_name = 'blog/create.html'
     context_object_name = 'post'
-
-    def get_object(self, queryset=None):
-        post = super().get_object(queryset)
-        if post.author != self.request.user:
-            raise Http404("У вас нет прав для удаления этого поста.")
-        return post
 
     def get_success_url(self):
         return reverse_lazy('blog:index')
@@ -203,18 +201,12 @@ class CommentCreateView(LoginRequiredMixin, CreateView):
         )
 
 
-class CommentEditView(LoginRequiredMixin, UpdateView):
+class CommentEditView(LoginRequiredMixin, OnlyAuthorMixin, UpdateView):
     """Представление для редактирования комментария."""
 
     model = Comment
     template_name = 'blog/comment.html'
     form_class = CommentForm
-
-    def get_object(self, queryset=None):
-        comment = get_object_or_404(Comment, pk=self.kwargs['comment_id'], post__id=self.kwargs['post_id'])
-        if comment.author != self.request.user:
-            raise Http404("У вас нет прав для редактирования этого комментария.")
-        return comment
 
     def get_success_url(self):
         return reverse_lazy(
@@ -227,18 +219,12 @@ class CommentEditView(LoginRequiredMixin, UpdateView):
         return context
 
 
-class CommentDeleteView(LoginRequiredMixin, DeleteView):
+class CommentDeleteView(LoginRequiredMixin, OnlyAuthorMixin, DeleteView):
     """Представление для удаления комментария."""
 
     model = Comment
     template_name = 'blog/comment.html'
     context_object_name = 'comment'
-
-    def get_object(self, queryset=None):
-        comment = super().get_object(queryset)
-        if comment.author != self.request.user:
-            raise Http404("У вас нет прав для удаления этого комментария.")
-        return comment
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -249,7 +235,6 @@ class CommentDeleteView(LoginRequiredMixin, DeleteView):
         return reverse_lazy(
             'blog:post_detail', kwargs={'id': self.object.post.id}
         )
-
 
 
 class PostListView(PublishedPostsMixin, ListView):
@@ -281,7 +266,6 @@ class PostDetailView(PostAvailableMixin, DetailView):
         context['form'] = CommentForm()
         context['comments'] = post.comments.select_related('author').order_by('pub_date')
         return context
-
 
 
 class CategoryPostListView(CategoryAvailableMixin, ListView):
