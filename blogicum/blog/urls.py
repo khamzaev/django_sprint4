@@ -7,16 +7,16 @@ app_name = 'blog'
 
 urlpatterns = [
     # Общие страницы
-    path('', views.index, name='index'),
+    path('', views.PostListView.as_view(), name='index'),
 
     # Управление пользователями
     path('register/', views.UserRegistrationView.as_view(), name='register'),
     path('profile/<str:username>/', views.UserProfileView.as_view(), name='profile'),
-    path('profile/edit/', views.UserProfileEditView.as_view(), name='profile_edit'),
+    path('profile/edit/', views.UserProfileEditView.as_view(), name='edit_profile'),
     path('password_change/', views.UserPasswordChangeView.as_view(), name='password_change'),
 
     # Посты
-    path('create/', views.PostCreateView.as_view(), name='post_create'),
+    path('posts/create/', views.PostCreateView.as_view(), name='create_post'),
     path(
         'posts/<int:id>/',
         views.PostDetailView.as_view(),
@@ -25,23 +25,23 @@ urlpatterns = [
     path(
         'posts/<int:id>/edit/',
         views.PostEditView.as_view(),
-        name='post_edit'
+        name='edit_post'
     ),
     path(
         'posts/<int:post_id>/delete/',
         views.PostDeleteView.as_view(),
-        name='post_delete'
+        name='delete_post'
     ),
 
     # Комментарии
     path(
         'posts/<int:post_id>/comment/',
-        views.add_comment,
+        views.CommentCreateView.as_view(),
         name='add_comment'
     ),
     path(
         'posts/<int:post_id>/edit_comment/<int:comment_id>/',
-        views.edit_comment,
+        views.CommentEditView.as_view(),
         name='edit_comment'
     ),
     path(
@@ -57,4 +57,3 @@ urlpatterns = [
         name='category_posts'
     ),
 ]
-

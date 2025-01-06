@@ -9,10 +9,12 @@ from django.core.paginator import Paginator
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.forms import UserCreationForm, UserChangeForm
 from django.contrib.auth.views import PasswordChangeView
+from django.contrib.auth.models import User
 
 from .models import Post, Category, Comment
 from .constants import LATEST_POSTS_COUNT
 from .forms import PostCreateForm, CommentForm
+
 
 
 class PublishedPostsMixin:
@@ -68,7 +70,7 @@ class UserProfileView(DetailView):
     """Отображает профиль пользователя."""
 
     model = User
-    template_name = 'profile.html'
+    template_name = 'blog/profile.html'
     context_object_name = 'profile'
 
     def get_object(self):
@@ -77,7 +79,7 @@ class UserProfileView(DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         posts = Post.objects.filter(
-            author=self.object, is_published=True
+            author=self.object
         ).order_by('-pub_date')
         paginator = Paginator(posts, 10)
         page_number = self.request.GET.get('page')
@@ -90,7 +92,7 @@ class UserProfileEditView(LoginRequiredMixin, UpdateView):
 
     model = User
     form_class = UserChangeForm
-    template_name = 'user.html'
+    template_name = 'blog/user.html'
 
     def get_object(self, queryset=None):
         return self.request.user
@@ -114,11 +116,10 @@ class PostCreateView(LoginRequiredMixin, CreateView):
     model = Post
     form_class = PostCreateForm
     template_name = 'blog/create.html'
+    pk_url_kwarg = 'post_id'
 
     def form_valid(self, form):
         form.instance.author = self.request.user
-        if form.instance.pub_date > timezone.now():
-            form.instance.is_published = False
         return super().form_valid(form)
 
     def get_success_url(self):
@@ -133,6 +134,7 @@ class PostEditView(LoginRequiredMixin, UpdateView):
     model = Post
     form_class = PostCreateForm
     template_name = 'blog/create.html'
+    pk_url_kwarg = 'post_id'
 
     def form_valid(self, form):
         if form.instance.pub_date > timezone.now():
@@ -145,6 +147,12 @@ class PostEditView(LoginRequiredMixin, UpdateView):
             raise Http404("У вас нет прав для редактирования этого поста.")
         return post
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        if 'form' not in context:
+            context['form'] = self.get_form()
+        return context
+
     def get_success_url(self):
         return reverse_lazy('blog:post_detail', kwargs={'id': self.object.id})
 
@@ -153,7 +161,7 @@ class PostDeleteView(LoginRequiredMixin, DeleteView):
     """Представление для удаления публикации."""
 
     model = Post
-    template_name = 'blog/post_confirm_delete.html'
+    template_name = 'blog/create.html'
     context_object_name = 'post'
 
     def get_object(self, queryset=None):
@@ -170,16 +178,27 @@ class CommentCreateView(LoginRequiredMixin, CreateView):
     """Представление для добавления комментария к посту."""
 
     model = Comment
+    template_name = 'blog/comment.html'
     form_class = CommentForm
-    template_name = 'blog/comment_form.html'
 
-    def form_valid(self, form):
-        post = Post.objects.get(id=self.kwargs['post_id'])
+    def get_post(self):
+        """Получает пост, связанный с комментарием."""
+        post = get_object_or_404(Post, id=self.kwargs['post_id'])
         if not post.is_published or post.pub_date > timezone.now():
             raise Http404("Публикация недоступна.")
+        return post
+
+    def form_valid(self, form):
+        post = self.get_post()
         form.instance.author = self.request.user
         form.instance.post = post
         return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        """Добавляет объект поста в контекст."""
+        context = super().get_context_data(**kwargs)
+        context['post'] = self.get_post()
+        return context
 
     def get_success_url(self):
         return reverse_lazy(
@@ -191,11 +210,11 @@ class CommentEditView(LoginRequiredMixin, UpdateView):
     """Представление для редактирования комментария."""
 
     model = Comment
+    template_name = 'blog/comment.html'
     form_class = CommentForm
-    template_name = 'blog/comment_form.html'
 
     def get_object(self, queryset=None):
-        comment = super().get_object(queryset)
+        comment = get_object_or_404(Comment, pk=self.kwargs['comment_id'], post__id=self.kwargs['post_id'])
         if comment.author != self.request.user:
             raise Http404("У вас нет прав для редактирования этого комментария.")
         return comment
@@ -205,16 +224,25 @@ class CommentEditView(LoginRequiredMixin, UpdateView):
             'blog:post_detail', kwargs={'id': self.object.post.id}
         )
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['comment'] = self.get_object()  # Передаем объект комментария
+        return context
+
 
 class CommentDeleteView(LoginRequiredMixin, DeleteView):
     """Представление для удаления комментария."""
 
     model = Comment
-    template_name = 'blog/comment_confirm_delete.html'
+    template_name = 'blog/comment.html'
     context_object_name = 'comment'
 
     def get_object(self, queryset=None):
-        comment = super().get_object(queryset)
+        comment = get_object_or_404(
+            Comment,
+            pk=self.kwargs['comment_id'],
+            post_id=self.kwargs['post_id']
+        )
         if comment.author != self.request.user:
             raise Http404("У вас нет прав для удаления этого комментария.")
         return comment
@@ -223,6 +251,11 @@ class CommentDeleteView(LoginRequiredMixin, DeleteView):
         return reverse_lazy(
             'blog:post_detail', kwargs={'id': self.object.post.id}
         )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['comment'] = self.get_object()
+        return context
 
 
 class PostListView(PublishedPostsMixin, ListView):
@@ -240,6 +273,7 @@ class PostDetailView(PostAvailableMixin, DetailView):
     model = Post
     template_name = "blog/detail.html"
     context_object_name = "post"
+    pk_url_kwarg = 'id'
 
 
 class CategoryPostListView(CategoryAvailableMixin, ListView):
