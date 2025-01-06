@@ -238,24 +238,21 @@ class CommentDeleteView(LoginRequiredMixin, DeleteView):
     context_object_name = 'comment'
 
     def get_object(self, queryset=None):
-        comment = get_object_or_404(
-            Comment,
-            pk=self.kwargs['comment_id'],
-            post_id=self.kwargs['post_id']
-        )
+        comment = super().get_object(queryset)
         if comment.author != self.request.user:
             raise Http404("У вас нет прав для удаления этого комментария.")
         return comment
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['form'] = None
+        return context
 
     def get_success_url(self):
         return reverse_lazy(
             'blog:post_detail', kwargs={'id': self.object.post.id}
         )
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['comment'] = self.get_object()
-        return context
 
 
 class PostListView(PublishedPostsMixin, ListView):
@@ -274,6 +271,23 @@ class PostDetailView(PostAvailableMixin, DetailView):
     template_name = "blog/detail.html"
     context_object_name = "post"
     pk_url_kwarg = 'id'
+
+    def get_object(self, queryset=None):
+        post_id = self.kwargs.get('post_id')
+        post = get_object_or_404(Post, id=post_id)
+        if (post.author == self.request.user or (post.is_published
+                                                 and post.category.is_published)):
+            return post
+        raise Http404('Страница не найдена')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        post = self.get_object()
+        comments = post.comments.all().order_by('created_at')
+        context['form'] = CommentForm()
+        context['comments'] = comments
+        return context
+
 
 
 class CategoryPostListView(CategoryAvailableMixin, ListView):
