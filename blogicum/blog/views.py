@@ -67,9 +67,9 @@ class PostAvailableMixin:
     def get_object(self, queryset=None):
         post = super().get_object(queryset)
         if (
-            post.pub_date > timezone.now() or
-            not post.is_published or
-            not post.category.is_published
+            post.pub_date > timezone.now()
+            or not post.is_published
+            or not post.category.is_published
         ):
             raise Http404("Публикация недоступна.")
         return post
@@ -264,8 +264,8 @@ class PostDetailView(DetailView):
         post_id = self.kwargs.get('post_id')
         post = get_object_or_404(Post, id=post_id)
         if (
-            post.author == self.request.user or
-            (post.is_published and post.category.is_published)
+            post.author == self.request.user
+            or(post.is_published and post.category.is_published)
         ):
             return post
         raise Http404('Страница не найдена')
@@ -274,7 +274,8 @@ class PostDetailView(DetailView):
         context = super().get_context_data(**kwargs)
         post = self.get_object()
         context['form'] = CommentForm()
-        context['comments'] = post.comments.select_related('author').order_by('pub_date')
+        context['comments'] = (post.comments.select_related('author')
+                               .order_by('pub_date'))
         return context
 
 
