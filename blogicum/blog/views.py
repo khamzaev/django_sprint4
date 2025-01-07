@@ -265,7 +265,7 @@ class PostDetailView(DetailView):
         post = get_object_or_404(Post, id=post_id)
         if (
             post.author == self.request.user
-            or(post.is_published and post.category.is_published)
+            or (post.is_published and post.category.is_published)
         ):
             return post
         raise Http404('Страница не найдена')
