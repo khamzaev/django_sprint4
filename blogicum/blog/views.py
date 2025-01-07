@@ -116,7 +116,7 @@ class UserProfileView(DetailView):
         return context
 
 
-class UserProfileEditView(LoginRequiredMixin, OnlyAuthorMixin, UpdateView):
+class UserProfileEditView(LoginRequiredMixin, UpdateView):
     """Представление для редактирования профиля пользователя."""
 
     model = User
@@ -185,6 +185,12 @@ class PostDeleteView(LoginRequiredMixin, OnlyAuthorMixin, DeleteView):
     template_name = 'blog/create.html'
     context_object_name = 'post'
     pk_url_kwarg = 'post_id'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        form = PostCreateForm(instance=self.get_object())
+        context['form'] = form
+        return context
 
     def get_success_url(self):
         return reverse_lazy('blog:index')
