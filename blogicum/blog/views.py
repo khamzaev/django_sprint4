@@ -39,12 +39,12 @@ class CommentMixin(LoginRequiredMixin):
         context['post_id'] = self.kwargs.get('post_id')
         return context
 
+
 class OnlyAuthorMixin(UserPassesTestMixin):
 
     def test_func(self):
-        object = self.get_object()
-        return object.author == self.request.user
-
+        obj = self.get_object()
+        return obj.author == self.request.user
 
 
 class PublishedPostsMixin:
@@ -213,7 +213,6 @@ class CommentCreateView(LoginRequiredMixin, CreateView):
         return super().form_valid(form)
 
 
-
 class CommentEditView(CommentMixin, UpdateView):
     """Представление для редактирования комментария."""
 
@@ -264,8 +263,10 @@ class PostDetailView(DetailView):
     def get_object(self, queryset=None):
         post_id = self.kwargs.get('post_id')
         post = get_object_or_404(Post, id=post_id)
-        if (post.author == self.request.user or (post.is_published
-           and post.category.is_published)):
+        if (
+            post.author == self.request.user or
+            (post.is_published and post.category.is_published)
+        ):
             return post
         raise Http404('Страница не найдена')
 
