@@ -11,8 +11,6 @@ class UserProfileForm(forms.ModelForm):
 
 
 class PostCreateForm(forms.ModelForm):
-    """Форма для создания нового поста."""
-
     class Meta:
         model = Post
         exclude = ['author', 'users_like']
@@ -22,7 +20,6 @@ class PostCreateForm(forms.ModelForm):
 
 
 class CommentForm(forms.ModelForm):
-    """Форма для добавления или редактирования комментариев."""
 
     class Meta:
         model = Comment

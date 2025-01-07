@@ -1,3 +1,4 @@
+from django.contrib.auth.forms import UserCreationForm
 from django.core.exceptions import PermissionDenied
 from django.views.generic import (
     ListView, DetailView, CreateView, UpdateView, DeleteView
@@ -91,7 +92,7 @@ class UserRegistrationView(CreateView):
     """Отображает форму для регистрации пользователей."""
 
     template_name = 'registration/registration_form.html'
-    form_class = UserProfileForm
+    form_class = UserCreationForm
     success_url = reverse_lazy('login')
 
 

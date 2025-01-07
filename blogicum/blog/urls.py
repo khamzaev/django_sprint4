@@ -10,13 +10,28 @@ urlpatterns = [
     path('', views.PostListView.as_view(), name='index'),
 
     # Управление пользователями
-    path('register/', views.UserRegistrationView.as_view(), name='register'),
-    path('profile/<str:username>/', views.UserProfileView.as_view(), name='profile'),
-    path('profile/edit/', views.UserProfileEditView.as_view(), name='edit_profile'),
-    path('password_change/', views.UserPasswordChangeView.as_view(), name='password_change'),
+    path('register/',
+         views.UserRegistrationView.as_view(),
+         name='register'
+         ),
+    path('profile/<str:username>/',
+         views.UserProfileView.as_view(),
+         name='profile'
+         ),
+    path('accounts/profile/',
+         views.UserProfileEditView.as_view(),
+         name='edit_profile'
+         ),
+    path('password_change/',
+         views.UserPasswordChangeView.as_view(),
+         name='password_change'
+         ),
 
     # Посты
-    path('posts/create/', views.PostCreateView.as_view(), name='create_post'),
+    path('posts/create/',
+         views.PostCreateView.as_view(),
+         name='create_post'
+         ),
     path(
         'posts/<int:post_id>/',
         views.PostDetailView.as_view(),
