@@ -1,3 +1,4 @@
+from django.core.exceptions import PermissionDenied
 from django.views.generic import (
     ListView, DetailView, CreateView, UpdateView, DeleteView
 )
@@ -6,25 +7,43 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy, reverse
 from django.core.paginator import Paginator
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.contrib.auth.forms import UserCreationForm, UserChangeForm
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.views import PasswordChangeView
 from django.contrib.auth.models import User
 from django.db.models import Count
 
 from .models import Post, Category, Comment
 from .constants import LATEST_POSTS_COUNT
-from .forms import PostCreateForm, CommentForm
+from .forms import PostCreateForm, CommentForm, UserProfileForm
 
 
-class OnlyAuthorMixin:
-    """Mixin для проверки, что объект принадлежит текущему пользователю."""
+class CommentMixin(LoginRequiredMixin):
+    model = Comment
+    template_name = 'blog/comment.html'
 
-    def get_object(self, queryset=None):
-        obj = super().get_object(queryset)
-        if obj.author != self.request.user:
-            raise Http404("Вы не можете редактировать или удалять чужой контент.")
-        return obj
+    def dispatch(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        if self.object.author != request.user:
+            raise PermissionDenied(
+                'Вы не авторизованы для удаления этого комментария.'
+            )
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        if '/delete_comment/' in self.request.path:
+            context['form'] = None
+        else:
+            context['form'] = CommentForm(instance=self.object)
+        context['post_id'] = self.kwargs.get('post_id')
+        return context
+
+class OnlyAuthorMixin(UserPassesTestMixin):
+
+    def test_func(self):
+        object = self.get_object()
+        return object.author == self.request.user
+
 
 
 class PublishedPostsMixin:
@@ -72,7 +91,7 @@ class UserRegistrationView(CreateView):
     """Отображает форму для регистрации пользователей."""
 
     template_name = 'registration/registration_form.html'
-    form_class = UserCreationForm
+    form_class = UserProfileForm
     success_url = reverse_lazy('login')
 
 
@@ -101,7 +120,7 @@ class UserProfileEditView(LoginRequiredMixin, OnlyAuthorMixin, UpdateView):
     """Представление для редактирования профиля пользователя."""
 
     model = User
-    form_class = UserChangeForm
+    form_class = UserProfileForm
     template_name = 'blog/user.html'
 
     def get_object(self, queryset=None):
@@ -139,7 +158,7 @@ class PostCreateView(LoginRequiredMixin, CreateView):
         )
 
 
-class PostEditView(LoginRequiredMixin, OnlyAuthorMixin, UpdateView):
+class PostEditView(OnlyAuthorMixin, UpdateView):
     """Представление для редактирования публикации."""
 
     model = Post
@@ -165,77 +184,53 @@ class PostDeleteView(LoginRequiredMixin, OnlyAuthorMixin, DeleteView):
     model = Post
     template_name = 'blog/create.html'
     context_object_name = 'post'
+    pk_url_kwarg = 'post_id'
 
     def get_success_url(self):
         return reverse_lazy('blog:index')
 
 
 class CommentCreateView(LoginRequiredMixin, CreateView):
-    """Представление для добавления комментария к посту."""
-
     model = Comment
-    template_name = 'blog/comment.html'
     form_class = CommentForm
 
-    def get_post(self):
-        """Получает пост, связанный с комментарием."""
-        post = get_object_or_404(Post, id=self.kwargs['post_id'])
-        if not post.is_published or post.pub_date > timezone.now():
-            raise Http404("Публикация недоступна.")
-        return post
+    def get_success_url(self):
+        post_id = self.kwargs.get('post_id')
+        return reverse('blog:post_detail', kwargs={'post_id': post_id})
 
     def form_valid(self, form):
-        post = self.get_post()
-        form.instance.author = self.request.user
+        post_id = self.kwargs.get('post_id')
+        post = get_object_or_404(Post, id=post_id)
         form.instance.post = post
+        form.instance.author = self.request.user
         return super().form_valid(form)
 
-    def get_context_data(self, **kwargs):
-        """Добавляет объект поста в контекст."""
-        context = super().get_context_data(**kwargs)
-        context['post'] = self.get_post()
-        return context
-
-    def get_success_url(self):
-        return reverse_lazy(
-            'blog:post_detail', kwargs={'post_id': self.kwargs['post_id']}
-        )
 
 
-class CommentEditView(LoginRequiredMixin, OnlyAuthorMixin, UpdateView):
+class CommentEditView(CommentMixin, UpdateView):
     """Представление для редактирования комментария."""
 
-    model = Comment
-    template_name = 'blog/comment.html'
     form_class = CommentForm
+    success_url = reverse_lazy('blog:index')
 
-    def get_success_url(self):
-        return reverse_lazy(
-            'blog:post_detail', kwargs={'post_id': self.object.post.id}
-        )
+    def get_object(self, queryset=None):
+        comment_id = self.kwargs.get('comment_id')
+        return get_object_or_404(Comment, id=comment_id)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['comment'] = self.get_object()  # Передаем объект комментария
+        context['post_id'] = self.kwargs.get('post_id')
         return context
 
 
-class CommentDeleteView(LoginRequiredMixin, OnlyAuthorMixin, DeleteView):
+class CommentDeleteView(CommentMixin, DeleteView):
     """Представление для удаления комментария."""
 
-    model = Comment
-    template_name = 'blog/comment.html'
-    context_object_name = 'comment'
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['form'] = None
-        return context
+    pk_url_kwarg = 'comment_id'
 
     def get_success_url(self):
-        return reverse_lazy(
-            'blog:post_detail', kwargs={'post_id': self.object.post.id}
-        )
+        post_id = self.kwargs.get('post_id')
+        return reverse_lazy('blog:post_detail', kwargs={'post_id': post_id})
 
 
 class PostListView(PublishedPostsMixin, ListView):
@@ -251,7 +246,7 @@ class PostListView(PublishedPostsMixin, ListView):
         return queryset.annotate(comment_count=Count('comments'))
 
 
-class PostDetailView(PostAvailableMixin, DetailView):
+class PostDetailView(DetailView):
     """Отображает подробную информацию о посте по его ID."""
 
     model = Post
@@ -260,10 +255,12 @@ class PostDetailView(PostAvailableMixin, DetailView):
     pk_url_kwarg = 'post_id'
 
     def get_object(self, queryset=None):
-        post = super().get_object(queryset)
-        if not post.is_published or not post.category.is_published:
-            raise Http404("Публикация недоступна.")
-        return post
+        post_id = self.kwargs.get('post_id')
+        post = get_object_or_404(Post, id=post_id)
+        if (post.author == self.request.user or (post.is_published
+           and post.category.is_published)):
+            return post
+        raise Http404('Страница не найдена')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

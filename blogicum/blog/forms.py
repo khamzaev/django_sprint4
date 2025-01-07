@@ -1,6 +1,13 @@
 from django import forms
+from django.contrib.auth.models import User
 
-from .models import Post, Category, Location, Comment
+from .models import Post, Comment
+
+
+class UserProfileForm(forms.ModelForm):
+    class Meta:
+        model = User
+        fields = ['first_name', 'last_name', 'username', 'email']
 
 
 class PostCreateForm(forms.ModelForm):
@@ -8,16 +15,10 @@ class PostCreateForm(forms.ModelForm):
 
     class Meta:
         model = Post
-        fields = ['title', 'text', 'category', 'location', 'pub_date', 'image']
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields['category'].queryset = Category.objects.filter(
-            is_published=True
-        )
-        self.fields['location'].queryset = Location.objects.filter(
-            is_published=True
-        )
+        exclude = ['author', 'users_like']
+        widgets = {
+            'pub_date': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
+        }
 
 
 class CommentForm(forms.ModelForm):
@@ -26,9 +27,3 @@ class CommentForm(forms.ModelForm):
     class Meta:
         model = Comment
         fields = ['text']  # Только текст комментария
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields['text'].widget.attrs.update(
-            {'class': 'form-control', 'rows': 3}
-        )
