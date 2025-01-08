@@ -93,7 +93,7 @@ def test_custom_err_handlers(client, user_client):
         from pages import views as pages_views
     except Exception:
         raise AssertionError(
-            "Убедитесь, что в файле `pages/views.py` нет ошибок."
+            "Убедитесь, что в файле `pages/models.py` нет ошибок."
         )
 
     for status, fname in err_pages_vs_file_names.items():
