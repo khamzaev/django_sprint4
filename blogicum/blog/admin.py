@@ -36,6 +36,7 @@ class PostAdmin(admin.ModelAdmin):
     )
     ordering = ('pub_date',)
 
+
 @admin.register(Comment)
 class CommentAdmin(admin.ModelAdmin):
     list_display = (

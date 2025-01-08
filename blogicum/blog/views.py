@@ -39,13 +39,15 @@ class UserProfileView(ListView):
     def get_queryset(self):
         user = get_object_or_404(User, username=self.kwargs['username'])
         return (user.posts.annotate(
-            comment_count=Count('comments'))
-                .order_by('-pub_date')
-                )
+            comment_count=Count('comments')
+        ).order_by('-pub_date'))
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['profile'] = get_object_or_404(User, username=self.kwargs['username'])
+        context['profile'] = get_object_or_404(
+            User,
+            username=self.kwargs['username']
+        )
         return context
 
 
@@ -116,7 +118,6 @@ class PostDeleteView(PostMixin, OnlyAuthorMixin, DeleteView):
 
     def get_success_url(self):
         return reverse_lazy('blog:index')
-
 
 
 class CommentCreateView(LoginRequiredMixin, CreateView):
