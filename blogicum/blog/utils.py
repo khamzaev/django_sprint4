@@ -1,8 +1,11 @@
-from django.db.models import Count
 from django.db.models.functions import Now
+from django.shortcuts import get_object_or_404
+from django.db.models import Count
+
+from .models import User
 
 
-def get_post_queryset(objects_manager):
+def posts_queryset(objects_manager):
     return (
         objects_manager
         .filter(
@@ -15,3 +18,17 @@ def get_post_queryset(objects_manager):
         .order_by('-pub_date')
         .annotate(comment_count=Count('comments'))
     )
+
+
+def get_user_posts(objects_manager):
+    return (
+        objects_manager
+        .select_related('author')
+        .prefetch_related('category', 'location')
+        .order_by('-pub_date')
+        .annotate(comment_count=Count('comments'))
+    )
+
+
+def get_user(username):
+    return get_object_or_404(User, username=username)

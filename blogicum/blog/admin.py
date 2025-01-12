@@ -42,6 +42,5 @@ class CommentAdmin(admin.ModelAdmin):
     list_display = (
         'text',
         'post',
-        'created_at',
         'author'
     )

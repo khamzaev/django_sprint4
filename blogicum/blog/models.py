@@ -163,11 +163,6 @@ class Comment(models.Model):
         help_text='Дата и время, когда был оставлен комментарий.',
     )
 
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        verbose_name='Дата создания'
-    )
-
     class Meta:
         verbose_name = 'Комментарий'
         verbose_name_plural = 'Комментарии'
