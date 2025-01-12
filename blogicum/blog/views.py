@@ -145,11 +145,6 @@ class CommentEditView(CommentMixin, UpdateView):
         comment_id = self.kwargs.get('comment_id')
         return get_object_or_404(Comment, id=comment_id)
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['post_id'] = self.kwargs.get('post_id')
-        return context
-
 
 class CommentDeleteView(CommentMixin, DeleteView):
     """Представление для удаления комментария."""

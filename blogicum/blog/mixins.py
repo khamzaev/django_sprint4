@@ -1,5 +1,6 @@
 from django.urls import reverse_lazy
 from django.utils import timezone
+
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.exceptions import PermissionDenied
 from django.http import Http404
@@ -51,6 +52,20 @@ class PublishedPostsMixin:
                 category__is_published=True
             ).order_by('-pub_date')[:LATEST_POSTS_COUNT]
         )
+
+
+class PostAvailableMixin:
+    """Mixin для проверки доступности поста."""
+
+    def get_object(self, queryset=None):
+        post = super().get_object(queryset)
+        if (
+            post.pub_date > timezone.now()
+            or not post.is_published
+            or not post.category.is_published
+        ):
+            raise Http404('Публикация недоступна.')
+        return post
 
 
 class CategoryAvailableMixin:
