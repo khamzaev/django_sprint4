@@ -16,7 +16,8 @@ from .mixins import (
 from .models import Post, Comment
 from .constants import LATEST_POSTS_COUNT
 from .forms import PostCreateForm, CommentForm, UserProfileForm
-from.utils import get_post_queryset
+from .utils import get_post_queryset
+
 
 class UserRegistrationView(CreateView):
     """Отображает форму для регистрации пользователей."""
