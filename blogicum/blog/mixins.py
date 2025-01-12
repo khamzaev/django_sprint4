@@ -1,36 +1,37 @@
 from django.urls import reverse_lazy
 from django.utils import timezone
-
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.exceptions import PermissionDenied
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 
 from .constants import LATEST_POSTS_COUNT
-from .forms import CommentForm
 from .models import Comment, Post, Category
 
 
 class CommentMixin(LoginRequiredMixin):
     model = Comment
+    pk_url_kwarg = 'comment_id'
     template_name = 'blog/comment.html'
 
-    def dispatch(self, request, *args, **kwargs):
-        self.object = self.get_object()
-        if self.object.author != request.user:
-            raise PermissionDenied(
-                'Вы не авторизованы для удаления этого комментария.'
-            )
-        return super().dispatch(request, *args, **kwargs)
+    def get_object(self, queryset=None):
+        """Получение объекта комментария."""
+        comment_id = self.kwargs.get(self.pk_url_kwarg)
+        comment = get_object_or_404(Comment, id=comment_id)
+        if comment.author != self.request.user:
+            raise PermissionDenied('Вы не авторизованы для этого действия.')
+        return comment
 
     def get_context_data(self, **kwargs):
+        """Добавление данных в контекст."""
         context = super().get_context_data(**kwargs)
-        if '/delete_comment/' in self.request.path:
-            context['form'] = None
-        else:
-            context['form'] = CommentForm(instance=self.object)
         context['post_id'] = self.kwargs.get('post_id')
         return context
+
+    def get_success_url(self):
+        """URL перенаправления после действия."""
+        post_id = self.kwargs.get('post_id')
+        return reverse_lazy('blog:post_detail', kwargs={'post_id': post_id})
 
 
 class OnlyAuthorMixin(UserPassesTestMixin):
@@ -52,20 +53,6 @@ class PublishedPostsMixin:
                 category__is_published=True
             ).order_by('-pub_date')[:LATEST_POSTS_COUNT]
         )
-
-
-class PostAvailableMixin:
-    """Mixin для проверки доступности поста."""
-
-    def get_object(self, queryset=None):
-        post = super().get_object(queryset)
-        if (
-            post.pub_date > timezone.now()
-            or not post.is_published
-            or not post.category.is_published
-        ):
-            raise Http404('Публикация недоступна.')
-        return post
 
 
 class CategoryAvailableMixin:

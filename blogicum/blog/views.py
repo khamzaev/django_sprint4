@@ -2,14 +2,12 @@ from django.contrib.auth.forms import UserCreationForm
 from django.views.generic import (
     ListView, DetailView, CreateView, UpdateView, DeleteView
 )
-from django.utils import timezone
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy, reverse
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import PasswordChangeView
 from django.contrib.auth.models import User
-from django.db.models import Count
 
 from .mixins import (
     OnlyAuthorMixin, CommentMixin, PublishedPostsMixin,
@@ -18,7 +16,7 @@ from .mixins import (
 from .models import Post, Comment
 from .constants import LATEST_POSTS_COUNT
 from .forms import PostCreateForm, CommentForm, UserProfileForm
-
+from.utils import get_post_queryset
 
 class UserRegistrationView(CreateView):
     """Отображает форму для регистрации пользователей."""
@@ -34,13 +32,11 @@ class UserProfileView(ListView):
     model = Post
     template_name = 'blog/profile.html'
     context_object_name = 'post_list'
-    paginate_by = 10
+    paginate_by = LATEST_POSTS_COUNT
 
     def get_queryset(self):
         user = get_object_or_404(User, username=self.kwargs['username'])
-        return (user.posts.annotate(
-            comment_count=Count('comments')
-        ).order_by('-pub_date'))
+        return get_post_queryset(Post.objects).filter(author=user)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -80,7 +76,6 @@ class PostCreateView(LoginRequiredMixin, CreateView):
     model = Post
     form_class = PostCreateForm
     template_name = 'blog/create.html'
-    login_url = '/login/'
     pk_url_kwarg = 'post_id'
 
     def form_valid(self, form):
@@ -140,26 +135,10 @@ class CommentEditView(CommentMixin, UpdateView):
     """Представление для редактирования комментария."""
 
     form_class = CommentForm
-    success_url = reverse_lazy('blog:index')
-
-    def get_object(self, queryset=None):
-        comment_id = self.kwargs.get('comment_id')
-        return get_object_or_404(Comment, id=comment_id)
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['post_id'] = self.kwargs.get('post_id')
-        return context
 
 
 class CommentDeleteView(CommentMixin, DeleteView):
     """Представление для удаления комментария."""
-
-    pk_url_kwarg = 'comment_id'
-
-    def get_success_url(self):
-        post_id = self.kwargs.get('post_id')
-        return reverse_lazy('blog:post_detail', kwargs={'post_id': post_id})
 
 
 class PostListView(PublishedPostsMixin, ListView):
@@ -171,8 +150,7 @@ class PostListView(PublishedPostsMixin, ListView):
     paginate_by = LATEST_POSTS_COUNT
 
     def get_queryset(self):
-        queryset = super().get_queryset()
-        return queryset.annotate(comment_count=Count('comments'))
+        return get_post_queryset(Post.objects)
 
 
 class PostDetailView(DetailView):
@@ -212,11 +190,7 @@ class CategoryPostListView(CategoryAvailableMixin, ListView):
 
     def get_queryset(self):
         category = self.get_category()
-        return Post.objects.filter(
-            category=category,
-            pub_date__lte=timezone.now(),
-            is_published=True
-        ).order_by('-pub_date')
+        return get_post_queryset(Post.objects).filter(category=category)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

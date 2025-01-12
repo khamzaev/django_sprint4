@@ -1,7 +1,7 @@
 from django.db import models
 from django.contrib.auth import get_user_model
 
-from .constants import MAX_LENGTH
+from .constants import MAX_TEXT_LENGTH
 
 
 User = get_user_model()
@@ -11,7 +11,7 @@ class Category(models.Model):
     """Модель для описания тематической категории публикации."""
 
     title = models.CharField(
-        max_length=MAX_LENGTH,
+        max_length=MAX_TEXT_LENGTH,
         verbose_name='Заголовок',
         help_text='Введите название категории.',
     )
@@ -49,7 +49,7 @@ class Location(models.Model):
     """Модель для географической метки публикации."""
 
     name = models.CharField(
-        max_length=MAX_LENGTH,
+        max_length=MAX_TEXT_LENGTH,
         verbose_name='Название места',
         help_text='Введите название места.',
     )
@@ -75,7 +75,7 @@ class Post(models.Model):
     """Модель для описания публикации в блоге."""
 
     title = models.CharField(
-        max_length=MAX_LENGTH,
+        max_length=MAX_TEXT_LENGTH,
         verbose_name='Название публикации',
         help_text='Введите заголовок публикации.',
     )
@@ -161,6 +161,11 @@ class Comment(models.Model):
         auto_now_add=True,
         verbose_name='Дата и время публикации',
         help_text='Дата и время, когда был оставлен комментарий.',
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Дата создания'
     )
 
     class Meta:
