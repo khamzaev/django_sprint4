@@ -54,20 +54,6 @@ class PublishedPostsMixin:
         )
 
 
-class PostAvailableMixin:
-    """Mixin для проверки доступности поста."""
-
-    def get_object(self, queryset=None):
-        post = super().get_object(queryset)
-        if (
-            post.pub_date > timezone.now()
-            or not post.is_published
-            or not post.category.is_published
-        ):
-            raise Http404('Публикация недоступна.')
-        return post
-
-
 class CategoryAvailableMixin:
     """Mixin для проверки доступности категории."""
 

@@ -77,7 +77,6 @@ class PostCreateView(LoginRequiredMixin, CreateView):
     model = Post
     form_class = PostCreateForm
     template_name = 'blog/create.html'
-    login_url = '/login/'
     pk_url_kwarg = 'post_id'
 
     def form_valid(self, form):
