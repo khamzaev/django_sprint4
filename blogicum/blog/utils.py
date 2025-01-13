@@ -5,30 +5,32 @@ from django.db.models import Count
 from .models import User
 
 
-def posts_queryset(objects_manager):
+def get_published_posts(queryset):
+    """
+    Возвращает опубликованные посты с аннотацией количества комментариев
+    и сортировкой по дате публикации.
+    """
     return (
-        objects_manager
+        queryset
         .filter(
             is_published=True,
             pub_date__lte=Now(),
-            category__is_published=True
+            category__is_published=True,
         )
         .select_related('author')
-        .prefetch_related('category', 'location')
-        .order_by('-pub_date')
         .annotate(comment_count=Count('comments'))
+        .order_by('-pub_date')
     )
 
 
-def get_user_posts(objects_manager):
+def get_posts_with_comments(queryset):
+    """
+    Возвращает посты с аннотацией количества комментариев,
+    сортированные по дате публикации.
+    """
     return (
-        objects_manager
+        queryset
         .select_related('author')
-        .prefetch_related('category', 'location')
-        .order_by('-pub_date')
         .annotate(comment_count=Count('comments'))
+        .order_by('-pub_date')
     )
-
-
-def get_user(username):
-    return get_object_or_404(User, username=username)

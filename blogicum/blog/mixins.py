@@ -1,36 +1,67 @@
 from django.urls import reverse_lazy
-from django.utils import timezone
-
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.exceptions import PermissionDenied
 from django.http import Http404
 from django.shortcuts import get_object_or_404
+from django.views.generic import DeleteView
 
-from .constants import LATEST_POSTS_COUNT
 from .forms import CommentForm
 from .models import Comment, Post, Category
 
 
 class CommentMixin(LoginRequiredMixin):
+    """
+    Общий миксин для работы с комментариями: редактирование и удаление.
+    """
     model = Comment
+    form_class = CommentForm
     template_name = 'blog/comment.html'
+    pk_url_kwarg = 'comment_id'
 
     def dispatch(self, request, *args, **kwargs):
+        """
+        Проверяет права доступа к комментариям.
+        """
         self.object = self.get_object()
         if self.object.author != request.user:
-            raise PermissionDenied(
-                'Вы не авторизованы для удаления этого комментария.'
-            )
+            raise PermissionDenied('Вы не авторизованы для выполнения этого действия.')
         return super().dispatch(request, *args, **kwargs)
 
+    def get_object(self, queryset=None):
+        """
+        Получает объект комментария, связанный с постом.
+        """
+        return get_object_or_404(
+            Comment,
+            id=self.kwargs.get(self.pk_url_kwarg),
+            post_id=self.kwargs.get('post_id')
+        )
+
     def get_context_data(self, **kwargs):
+        """
+        Добавляет в контекст переменные.
+        """
         context = super().get_context_data(**kwargs)
-        if '/delete_comment/' in self.request.path:
+        if isinstance(self, DeleteView):
             context['form'] = None
         else:
-            context['form'] = CommentForm(instance=self.object)
+            context['form'] = self.form_class(instance=self.object)
         context['post_id'] = self.kwargs.get('post_id')
         return context
+
+    def post(self, request, *args, **kwargs):
+        """
+        Удаляет комментарий, если это DeleteView.
+        """
+        if isinstance(self, DeleteView):
+            self.get_object().delete()
+        return super().post(request, *args, **kwargs)
+
+    def get_success_url(self):
+        """
+        URL для перенаправления после выполнения действия.
+        """
+        return reverse_lazy('blog:post_detail', kwargs={'post_id': self.object.post.id})
 
 
 class OnlyAuthorMixin(UserPassesTestMixin):
@@ -38,20 +69,6 @@ class OnlyAuthorMixin(UserPassesTestMixin):
     def test_func(self):
         obj = self.get_object()
         return obj.author == self.request.user
-
-
-class PublishedPostsMixin:
-    """Mixin для фильтрации опубликованных постов."""
-
-    def get_queryset(self):
-        now = timezone.now()
-        return (
-            Post.objects.filter(
-                pub_date__lte=now,
-                is_published=True,
-                category__is_published=True
-            ).order_by('-pub_date')[:LATEST_POSTS_COUNT]
-        )
 
 
 class CategoryAvailableMixin:
