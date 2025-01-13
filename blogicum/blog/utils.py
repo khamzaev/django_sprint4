@@ -1,8 +1,5 @@
 from django.db.models.functions import Now
-from django.shortcuts import get_object_or_404
 from django.db.models import Count
-
-from .models import User
 
 
 def get_published_posts(queryset):
