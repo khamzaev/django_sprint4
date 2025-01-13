@@ -10,9 +10,8 @@ from .models import Comment, Post, Category
 
 
 class CommentMixin(LoginRequiredMixin):
-    """
-    Общий миксин для работы с комментариями: редактирование и удаление.
-    """
+    """Общий миксин для работы с комментариями: редактирование и удаление."""
+
     model = Comment
     form_class = CommentForm
     template_name = 'blog/comment.html'
@@ -21,7 +20,9 @@ class CommentMixin(LoginRequiredMixin):
     def dispatch(self, request, *args, **kwargs):
         self.object = self.get_object()
         if self.object.author != request.user:
-            raise PermissionDenied('Вы не авторизованы для выполнения этого действия.')
+            raise PermissionDenied(
+                'Вы не авторизованы для выполнения этого действия.'
+            )
         return super().dispatch(request, *args, **kwargs)
 
     def get_object(self, queryset=None):
@@ -48,7 +49,10 @@ class CommentMixin(LoginRequiredMixin):
         return super().post(request, *args, **kwargs)
 
     def get_success_url(self):
-        return reverse_lazy('blog:post_detail', kwargs={'post_id': self.kwargs.get('post_id')})
+        return reverse_lazy(
+            'blog:post_detail',
+            kwargs={'post_id': self.kwargs.get('post_id')}
+        )
 
 
 class OnlyAuthorMixin(UserPassesTestMixin):
