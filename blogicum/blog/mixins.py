@@ -2,7 +2,7 @@ from django.urls import reverse_lazy
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.exceptions import PermissionDenied
 from django.http import Http404
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, redirect
 from django.views.generic import DeleteView
 
 from .forms import CommentForm
@@ -19,18 +19,12 @@ class CommentMixin(LoginRequiredMixin):
     pk_url_kwarg = 'comment_id'
 
     def dispatch(self, request, *args, **kwargs):
-        """
-        Проверяет права доступа к комментариям.
-        """
         self.object = self.get_object()
         if self.object.author != request.user:
             raise PermissionDenied('Вы не авторизованы для выполнения этого действия.')
         return super().dispatch(request, *args, **kwargs)
 
     def get_object(self, queryset=None):
-        """
-        Получает объект комментария, связанный с постом.
-        """
         return get_object_or_404(
             Comment,
             id=self.kwargs.get(self.pk_url_kwarg),
@@ -38,9 +32,6 @@ class CommentMixin(LoginRequiredMixin):
         )
 
     def get_context_data(self, **kwargs):
-        """
-        Добавляет в контекст переменные.
-        """
         context = super().get_context_data(**kwargs)
         if isinstance(self, DeleteView):
             context['form'] = None
@@ -50,18 +41,14 @@ class CommentMixin(LoginRequiredMixin):
         return context
 
     def post(self, request, *args, **kwargs):
-        """
-        Удаляет комментарий, если это DeleteView.
-        """
         if isinstance(self, DeleteView):
+            self.success_url = self.get_success_url()
             self.get_object().delete()
+            return redirect(self.success_url)
         return super().post(request, *args, **kwargs)
 
     def get_success_url(self):
-        """
-        URL для перенаправления после выполнения действия.
-        """
-        return reverse_lazy('blog:post_detail', kwargs={'post_id': self.object.post.id})
+        return reverse_lazy('blog:post_detail', kwargs={'post_id': self.kwargs.get('post_id')})
 
 
 class OnlyAuthorMixin(UserPassesTestMixin):
