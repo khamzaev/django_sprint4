@@ -35,20 +35,22 @@ class UserProfileView(ListView):
     context_object_name = 'post_list'
     paginate_by = LATEST_POSTS_COUNT
 
-    @property
-    def profile(self):
-        if not hasattr(self, '_profile'):
+    _profile = None
+
+    def get_profile(self):
+        if self._profile is None:
             self._profile = get_object_or_404(
                 User, username=self.kwargs.get('username')
             )
         return self._profile
 
     def get_queryset(self):
-        return get_posts_with_comments(self.profile.posts)
+        profile = self.get_profile()
+        return get_posts_with_comments(profile.posts)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['profile'] = self.profile
+        context['profile'] = self.get_profile()
         return context
 
 
