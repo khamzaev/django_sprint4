@@ -14,7 +14,6 @@ def get_published_posts(queryset):
             pub_date__lte=Now(),
             category__is_published=True,
         )
-        .select_related('author')
         .annotate(comment_count=Count('comments'))
         .order_by('-pub_date')
     )
@@ -27,7 +26,7 @@ def get_posts_with_comments(queryset):
     """
     return (
         queryset
-        .select_related('author')
+        .select_related('author', 'category', 'location')
         .annotate(comment_count=Count('comments'))
         .order_by('-pub_date')
     )

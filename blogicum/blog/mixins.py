@@ -58,8 +58,7 @@ class CommentMixin(LoginRequiredMixin):
 class OnlyAuthorMixin(UserPassesTestMixin):
 
     def test_func(self):
-        obj = self.get_object()
-        return obj.author == self.request.user
+        return self.get_object().author == self.request.user
 
 
 class CategoryAvailableMixin:

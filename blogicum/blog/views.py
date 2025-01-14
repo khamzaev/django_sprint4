@@ -35,20 +35,20 @@ class UserProfileView(ListView):
     context_object_name = 'post_list'
     paginate_by = LATEST_POSTS_COUNT
 
-    def get_profile(self):
+    @property
+    def profile(self):
         if not hasattr(self, '_profile'):
             self._profile = get_object_or_404(
-                User,
-                username=self.kwargs.get('username'))
+                User, username=self.kwargs.get('username')
+            )
         return self._profile
 
     def get_queryset(self):
-        profile = self.get_profile()
-        return get_posts_with_comments(profile.posts)
+        return get_posts_with_comments(self.profile.posts)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['profile'] = self.get_profile()
+        context['profile'] = self.profile
         return context
 
 
@@ -191,9 +191,7 @@ class CategoryPostListView(CategoryAvailableMixin, ListView):
     context_object_name = 'post_list'
     paginate_by = LATEST_POSTS_COUNT
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self._category = None
+    _category = None
 
     def get_category(self):
         if self._category is None:
