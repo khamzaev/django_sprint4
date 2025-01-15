@@ -8,7 +8,7 @@ def get_published_posts(queryset):
     и сортировкой по дате публикации.
     """
     return (
-        get_posts_with_comments(queryset)  # Используем уже существующую функцию
+        get_posts_with_comments(queryset)
         .filter(
             is_published=True,
             pub_date__lte=Now(),
