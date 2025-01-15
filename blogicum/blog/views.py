@@ -37,20 +37,20 @@ class UserProfileView(ListView):
 
     _profile = None
 
-    def get_profile(self):
+    def load_profile(self):
         if self._profile is None:
             self._profile = get_object_or_404(
                 User, username=self.kwargs.get('username')
             )
-        return self._profile
 
     def get_queryset(self):
-        profile = self.get_profile()
-        return get_posts_with_comments(profile.posts)
+        self.load_profile()
+        return get_posts_with_comments(self._profile.posts)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['profile'] = self.get_profile()
+        self.load_profile()
+        context['profile'] = self._profile
         return context
 
 
