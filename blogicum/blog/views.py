@@ -157,7 +157,9 @@ class PostListView(ListView):
     template_name = 'blog/index.html'
     context_object_name = 'post_list'
     paginate_by = LATEST_POSTS_COUNT
-    queryset = get_published_posts(Post.objects)
+
+    def get_queryset(self):
+        return get_published_posts(Post.objects)
 
 
 class PostDetailView(DetailView):
