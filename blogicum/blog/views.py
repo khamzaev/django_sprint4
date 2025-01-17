@@ -16,7 +16,7 @@ from .mixins import (
 from .models import Post, Comment
 from .constants import LATEST_POSTS_COUNT
 from .forms import PostCreateForm, CommentForm, UserProfileForm
-from .utils import get_posts_with_comments, get_published_posts
+from .utils import annotate_posts_with_comments, filter_published_posts
 
 
 class UserRegistrationView(CreateView):
@@ -45,7 +45,7 @@ class UserProfileView(ListView):
 
     def get_queryset(self):
         self.load_profile()
-        return get_posts_with_comments(self._profile.posts)
+        return annotate_posts_with_comments(self._profile.posts)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -114,8 +114,6 @@ class PostDeleteView(PostMixin, OnlyAuthorMixin, DeleteView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        form = PostCreateForm(instance=self.get_object())
-        context['form'] = form
         return context
 
     def get_success_url(self):
@@ -159,7 +157,9 @@ class PostListView(ListView):
     paginate_by = LATEST_POSTS_COUNT
 
     def get_queryset(self):
-        return get_published_posts(Post.objects)
+        return annotate_posts_with_comments(
+            filter_published_posts(Post.objects)
+        )
 
 
 class PostDetailView(DetailView):
@@ -203,7 +203,7 @@ class CategoryPostListView(CategoryAvailableMixin, ListView):
         return self._category
 
     def get_queryset(self):
-        return get_published_posts(self.get_category().posts)
+        return filter_published_posts(self.get_category().posts)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

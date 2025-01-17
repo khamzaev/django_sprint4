@@ -2,25 +2,25 @@ from django.db.models.functions import Now
 from django.db.models import Count
 
 
-def get_published_posts(queryset):
+def filter_published_posts(queryset):
     """
-    Возвращает опубликованные посты с аннотацией количества комментариев
-    и сортировкой по дате публикации.
+    Фильтрует опубликованные посты, у которых дата публикации уже прошла,
+    категория опубликована и посты сортируются по дате публикации от новых к старым.
     """
-    return (
-        get_posts_with_comments(queryset)
-        .filter(
-            is_published=True,
-            pub_date__lte=Now(),
-            category__is_published=True,
-        )
-    )
+    return queryset.filter(
+        is_published=True,
+        pub_date__lte=Now(),
+        category__is_published=True,
+    ).select_related('author') \
+        .prefetch_related('category', 'location') \
+        .order_by('-pub_date')
 
 
-def get_posts_with_comments(queryset):
+
+def annotate_posts_with_comments(queryset):
     """
-    Возвращает посты с аннотацией количества комментариев,
-    сортированные по дате публикации.
+    Добавляет аннотацию количества комментариев к постам
+    и сортирует их по дате публикации.
     """
     return (
         queryset
