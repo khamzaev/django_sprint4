@@ -5,7 +5,8 @@ from django.db.models import Count
 def filter_published_posts(queryset):
     """
     Фильтрует опубликованные посты, у которых дата публикации уже прошла,
-    категория опубликована и посты сортируются по дате публикации от новых к старым.
+    категория опубликована
+    и посты сортируются по дате публикации от новых к старым.
     """
     return queryset.filter(
         is_published=True,
@@ -14,7 +15,6 @@ def filter_published_posts(queryset):
     ).select_related('author') \
         .prefetch_related('category', 'location') \
         .order_by('-pub_date')
-
 
 
 def annotate_posts_with_comments(queryset):
