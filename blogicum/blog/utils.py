@@ -1,5 +1,5 @@
-from django.db.models.functions import Now
 from django.db.models import Count
+from django.utils.timezone import now
 
 
 def filter_published_posts(queryset):
@@ -10,11 +10,9 @@ def filter_published_posts(queryset):
     """
     return queryset.filter(
         is_published=True,
-        pub_date__lte=Now(),
-        category__is_published=True,
-    ).select_related('author') \
-        .prefetch_related('category', 'location') \
-        .order_by('-pub_date')
+        pub_date__lte=now(),
+        category__is_published=True
+    )
 
 
 def annotate_posts_with_comments(queryset):
