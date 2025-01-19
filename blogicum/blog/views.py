@@ -203,9 +203,10 @@ class CategoryPostListView(CategoryAvailableMixin, ListView):
         return self._category
 
     def get_queryset(self):
-        return (filter_published_posts(
-            self.get_category().posts)
-                .order_by('-pub_date'))
+        return (
+            filter_published_posts(self.get_category().posts)
+            .order_by('-pub_date')
+        )
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
